@@ -1,0 +1,120 @@
+using UnityEngine;
+using UnityEngine.UI;
+
+public class ControlAnimation : MonoBehaviour
+{
+    public static Button playBtn;
+
+    private static Transform pools;
+
+    public static Button confirmControl;
+
+    public static GameObject control;
+
+    private void Awake()
+    {
+            control = GameObject.Find("Canvas/ControlUI");
+            confirmControl = GameObject.Find("Canvas/ConfirmControl").GetComponent<Button>();
+            playBtn = GameObject.Find("Canvas/TopRight/PlayAnimation").GetComponent<Button>();
+            playBtn.onClick.AddListener(Changed);
+            pools = this.transform;
+    }
+
+    private static void Changed()
+    {
+     
+        if (Mechanics.isAnimation)
+        {
+            Time.timeScale = 0;
+            confirmControl.transform.localScale = new Vector3(0, 0, 0);
+            control.transform.localScale = new Vector3(0, 0, 0);
+            foreach (Transform child in pools)
+            {
+                if (child.childCount > 0)
+                {
+                    for (int i = 0; i < child.childCount; ++i)
+                    {
+                        if (child.GetChild(i).gameObject.GetComponent<Rigidbody>() != null)
+                            child.GetChild(i).GetComponent<Rigidbody>().isKinematic = true;
+
+                        if (child.GetChild(i).childCount > 0)
+                        {
+                            for (int j = 0; j < child.childCount; ++j)
+                                if (child.GetChild(j).GetChild(j).gameObject.GetComponent<Rigidbody>() != null)
+                                    child.GetChild(j).GetChild(j).GetComponent<Rigidbody>().isKinematic = true;
+                        }
+                    }
+                   
+                }
+                if (child.gameObject.GetComponent<Rigidbody>() != null)
+                {
+                        child.gameObject.GetComponent<Rigidbody>().isKinematic = true;
+                }
+            }
+            playBtn.GetComponent<Image>().color = Color.white;
+            Mechanics.isAnimation = false;
+            Time.timeScale = 1;
+        }
+        else
+        {
+            Time.timeScale = 0;
+            confirmControl.transform.localScale = new Vector3(1, 1,1);
+            control.transform.localScale = new Vector3(1, 1, 1);
+            foreach (Transform child in pools)
+            {
+                if (child.childCount > 0)
+                {
+                    for (int i = 0; i < child.childCount; ++i)
+                    {
+                        if (child.GetChild(i).gameObject.GetComponent<Rigidbody>() != null)
+                        {
+                            if (OperatorObj.isGravity)
+                                child.GetChild(i).GetComponent<Rigidbody>().useGravity = true;
+                            else
+                                child.GetChild(i).GetComponent<Rigidbody>().useGravity = false;
+
+                            child.GetChild(i).GetComponent<Rigidbody>().isKinematic = false;
+                        }
+                           
+                        if (child.GetChild(i).childCount > 0)
+                        {
+                            for (int j = 0; j < child.childCount; ++j)
+                                if (child.GetChild(j).GetChild(j).gameObject.GetComponent<Rigidbody>() != null)
+                                {
+                                    if (OperatorObj.isGravity)
+                                        child.GetChild(i).GetChild(j).GetComponent<Rigidbody>().useGravity = true;
+                                    else
+                                        child.GetChild(i).GetChild(j).GetComponent<Rigidbody>().useGravity = false;
+
+                                    child.GetChild(j).GetChild(j).GetComponent<Rigidbody>().isKinematic = false;
+                                }
+                        }
+                    }
+                        
+                }
+                if (child.gameObject.GetComponent<Rigidbody>() != null)
+                {
+                    if (OperatorObj.isGravity)
+                        child.gameObject.GetComponent<Rigidbody>().useGravity = true;
+                    else
+                        child.gameObject.GetComponent<Rigidbody>().useGravity = false;
+
+                    child.gameObject.GetComponent<Rigidbody>().isKinematic = false;
+                }
+            }
+
+            playBtn.GetComponent<Image>().color = Color.gray;
+            Mechanics.isAnimation = true;
+
+            foreach (Transform child in control.transform)
+            {
+                if (child.childCount > 0)
+                {
+                    Destroy(child.gameObject);
+                }
+            }
+          
+            Time.timeScale = 1;
+        }
+    }
+}
