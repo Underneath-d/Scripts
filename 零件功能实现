@@ -1,0 +1,1161 @@
+using System.Collections;
+using System.Collections.Generic;
+using UnityEngine;
+using UnityEngine.EventSystems;
+using UnityEngine.UI;
+
+public class OperatorObj : MonoBehaviour
+{
+    //实现顶部UI功能
+    public List<Button> opeObj = new List<Button>();
+    public static Button destoryBtn;
+    private static bool isActive = false;
+
+    public Transform pool;
+    public static bool isGravity = true;
+
+    private static Button activeBtn;
+    public GameObject activeObj;
+    private static Rigidbody connectObj;
+    public static bool isCam = true;//相机控制是否开启
+    public GameObject cam;
+
+    private static bool isCopy = false;//复制
+    private static bool click = true;//判断复制首次点击
+
+    private static bool isScript = false;//删除组件
+    private static bool goOn = true;//删除组件
+    public GameObject concel;//取消UI
+
+    private static GameObject record = null;//为移动、选择、缩放、信息、尺寸、删除等操作标记物体
+    private static GameObject record1 = null;//为移动、选择、缩放、信息、尺寸、删除等操作标记物体
+
+    private static bool isMove = false;//移动控制是否开启
+    public GameObject moveAxis;
+
+    private static bool isRotate = false;
+    public GameObject rotateAxis;
+
+    private static bool isScale = false;
+    public GameObject scaleAxis;
+
+    private static bool isAccuracy = false;
+    private static float accInt = 1.00f;
+    public GameObject accuracyInput;
+    private static int count = 0;
+
+    delegate void Method();//定义委托类
+    private List<Method> dict = new List<Method>();//定义字典
+
+    private void Awake()
+    {
+        destoryBtn = opeObj[8];
+        activeBtn = activeObj.GetComponent<Button>();
+        dict.Add(MoveCam);
+        dict.Add(MoveObj);
+        dict.Add(RotateObj);
+        dict.Add(ScaleObj);
+        dict.Add(Accuracy);
+        dict.Add(Accuracy);
+        dict.Add(GravitySimulation);
+        dict.Add(CopyObj);
+        dict.Add(DestroyObj);
+        dict.Add(DestroyScript);
+    }
+
+    private void Start()
+    {
+        concel.GetComponent<Button>().onClick.AddListener(ConcelFun);
+        activeBtn.onClick.AddListener(ChangeState);
+        ChooseBtn();
+    }
+
+    private void DestroyObj()
+    {
+        PoolsCreate.isDeleta = true;
+        opeObj[8].GetComponent<Image>().color = Color.grey;
+
+    }
+
+    private void ChooseBtn()
+    {
+        int x = 0;
+
+        foreach (Button item in opeObj)
+        {
+            int y = x;
+            item.onClick.AddListener(() => MaskDick(y));//此处用的第二种点击方法
+            x++;
+        }
+    }
+
+    void MaskDick(int y)
+    {
+        if (y.Equals(6))
+            dict[6]();
+        if (y != 0)
+        {
+            if (OtherClass.UIActive && (!y.Equals(6)))
+            {
+                dict[y]();
+                OperatorObj.isCam = false;
+                OtherClass.UIActive = false;
+            }
+            else if (count == 1)
+            {
+                accInt = float.Parse(accuracyInput.GetComponent<InputField>().text);
+                accuracyInput.SetActive(false);
+                opeObj[4].GetComponent<Image>().color = Color.white;
+                isAccuracy = false;
+                count = 0;
+                OtherClass.UIActive = true;
+                OperatorObj.isCam = true;
+            }
+
+        }
+        else
+        {
+            dict[y]();
+        }
+    }
+
+    private void GravitySimulation()
+    {
+        if (isGravity)
+        {
+            isGravity = false;
+            opeObj[6].GetComponent<Image>().color = Color.gray;
+        }
+        else
+        {
+            isGravity = true;
+            opeObj[6].GetComponent<Image>().color = Color.white;
+        }
+    }
+
+    public GameObject warnNull;
+    public GameObject warnNo;
+
+    IEnumerator ShowWarn(GameObject warn)//协程，分帧进行
+    {
+        warn.SetActive(true);
+        yield return new WaitForSeconds(2);
+        warn.SetActive(false);
+    }
+
+    private void ConcelFun()
+    {
+        if(record!=null)
+            ShaderShow(record, false);
+        if (record1 != null)
+            ShaderShow(record1, false);
+        isScript = false;
+        record = null;
+        record1 = null;
+        concel.SetActive(false);
+        OtherClass.UIActive = true;
+        isCam = true;
+        opeObj[9].GetComponent<Image>().color = Color.white;
+        opeObj[0].GetComponent<Image>().color = Color.gray;
+        goOn = true;
+    }
+
+    private void DestroyScript()
+    {
+        isScript = true;
+        concel.SetActive(true);
+        OtherClass.UIActive = false;
+        isCam = false;
+        opeObj[9].GetComponent<Image>().color = Color.gray;
+    }
+
+    private void CopyObj()
+    {
+        isCopy = true;
+        OtherClass.UIActive = true;
+        OperatorObj.isCam = true;
+        opeObj[7].GetComponent<Image>().color = Color.gray;
+    }
+
+    public void ChangeState()
+    {
+        activeObj.SetActive(false);
+        if (record != null)
+        {
+            ShaderShow(record, false);
+            
+            if (record.GetComponent<FixedJoint>() != null)
+            {
+                connectObj = record.GetComponent<FixedJoint>().connectedBody;
+                record.GetComponent<FixedJoint>().connectedBody = null;
+                record.GetComponent<FixedJoint>().connectedBody = connectObj;
+            }
+
+            if (record.GetComponent<HingeJoint>() != null)
+            {
+                connectObj = record.GetComponent<HingeJoint>().connectedBody;
+                record.GetComponent<HingeJoint>().connectedBody = null;
+                record.GetComponent<HingeJoint>().connectedBody = connectObj;
+            }
+
+            record = null;
+        }
+        moveAxis.SetActive(false);
+        isCam = true;
+        OtherClass.UIActive = true;
+        isMove = false;
+        isRotate = false;
+        isRotate = false;
+        isScale = false;
+
+        isCam = true;
+        isMove = false;
+        isRotate = false;
+        isScale = false;
+        opeObj[0].GetComponent<Image>().color = Color.gray;
+        opeObj[1].GetComponent<Image>().color = Color.white;
+        opeObj[2].GetComponent<Image>().color = Color.white;
+        opeObj[3].GetComponent<Image>().color = Color.white;
+        opeObj[7].GetComponent<Image>().color = Color.white;
+    }
+
+    private void MoveCam()//拖拽移动
+    {
+        if (isCam)
+        {
+            opeObj[0].GetComponent<Image>().color = Color.white;
+            isCam = false;
+        }
+        else
+        {
+            isCam = true;
+            isMove = false;
+            isRotate = false;
+            isScale = false;
+            opeObj[0].GetComponent<Image>().color = Color.green;
+            opeObj[1].GetComponent<Image>().color = Color.white;
+            opeObj[2].GetComponent<Image>().color = Color.white;
+            opeObj[3].GetComponent<Image>().color = Color.white;
+            if (record != null)
+            {
+                record.GetComponent<Renderer>().material.shader = Shader.Find("Standard");
+                record = null;
+            }
+        }
+    }
+
+    private void MoveObj()//拖拽移动
+    {
+        if (isMove)
+        {
+            opeObj[1].GetComponent<Image>().color = Color.white;
+            opeObj[0].GetComponent<Image>().color = Color.gray;
+            isCam = true;
+            isMove = false;
+            if (record != null)
+            {
+                record.GetComponent<Renderer>().material.shader = Shader.Find("Standard");
+                record = null;
+            }
+
+        }
+        else
+        {
+            isMove = true;
+            isCam = false;
+            isRotate = false;
+            isScale = false;
+            opeObj[0].GetComponent<Image>().color = Color.white;
+            opeObj[2].GetComponent<Image>().color = Color.white;
+            opeObj[3].GetComponent<Image>().color = Color.white;
+            opeObj[1].GetComponent<Image>().color = Color.gray;
+        }
+    }
+
+    private void RotateObj()//拖拽移动
+    {
+        if (isRotate)
+        {
+            opeObj[2].GetComponent<Image>().color = Color.white;
+            opeObj[0].GetComponent<Image>().color = Color.gray;
+            isCam = true;
+            isRotate = false;
+            record.GetComponent<Renderer>().material.shader = Shader.Find("Standard");
+            record = null;
+        }
+        else
+        {
+            isRotate = true;
+            isCam = false;
+            isMove = false;
+            isScale = false;
+            opeObj[0].GetComponent<Image>().color = Color.white;
+            opeObj[1].GetComponent<Image>().color = Color.white;
+            opeObj[3].GetComponent<Image>().color = Color.white;
+            opeObj[2].GetComponent<Image>().color = Color.gray;
+        }
+    }
+
+    private void ScaleObj()//拖拽移动
+    {
+        if (isScale)
+        {
+            opeObj[3].GetComponent<Image>().color = Color.white;
+            opeObj[0].GetComponent<Image>().color = Color.gray;
+            isCam = true;
+            isScale = false;
+            record.GetComponent<Renderer>().material.shader = Shader.Find("Standard");
+            record = null;
+        }
+        else
+        {
+            isScale = true;
+            isCam = false;
+            isRotate = false;
+            isMove = false;
+            opeObj[0].GetComponent<Image>().color = Color.white;
+            opeObj[1].GetComponent<Image>().color = Color.white;
+            opeObj[2].GetComponent<Image>().color = Color.white;
+            opeObj[3].GetComponent<Image>().color = Color.gray;
+        }
+    }
+
+    private void Accuracy()
+    {
+        if (isAccuracy)
+        {
+
+        }
+        else
+        {
+            opeObj[4].GetComponent<Image>().color = Color.gray;
+            accuracyInput.SetActive(true);
+            isAccuracy = true;
+            count = 1;
+        }
+    }
+
+    void TestM(GameObject cam1)
+    {
+        if (isCam || isMove)
+        {
+            if (Input.GetKey(KeyCode.W))
+            {
+                cam1.transform.Translate(Vector3.forward * 3 * accInt * Time.deltaTime);
+            }
+            if (Input.GetKey(KeyCode.S))
+            {
+                cam1.transform.Translate(Vector3.back * 3 * accInt * Time.deltaTime);//小车控制时，前进后退movespeed前都有负号
+            }
+            if (Input.GetKey(KeyCode.A))
+            {
+                cam1.transform.Translate(Vector3.left * 3 * accInt * Time.deltaTime);
+            }
+            if (Input.GetKey(KeyCode.D))
+            {
+                cam1.transform.Translate(Vector3.right * 3 * accInt * Time.deltaTime);//小车控制时，前进后退movespeed前都有负号
+            }
+            if (Input.GetKey(KeyCode.S))
+            {
+                cam1.transform.Translate(Vector3.back * 3 * accInt * Time.deltaTime);//小车控制时，前进后退movespeed前都有负号
+            }
+            if (Input.GetKey(KeyCode.Q))
+            {
+                cam1.transform.Translate(Vector3.up * 3 * accInt * Time.deltaTime);
+            }
+            if (Input.GetKey(KeyCode.E))
+            {
+                cam1.transform.Translate(Vector3.down * 3 * accInt * Time.deltaTime);//小车控制时，前进后退movespeed前都有负号
+            }
+        }
+        if (isCam || isRotate)
+        {
+            if (Input.GetKey(KeyCode.LeftArrow))
+            {
+                cam1.transform.Rotate(Vector3.up * 30 * accInt * Time.deltaTime);
+                cam1.transform.localEulerAngles = new Vector3(cam1.transform.localEulerAngles.x, cam1.transform.localEulerAngles.y, 0);
+            }
+            if (Input.GetKey(KeyCode.RightArrow))
+            {
+                cam1.transform.Rotate(Vector3.down * 30 * accInt * Time.deltaTime);
+                cam1.transform.localEulerAngles = new Vector3(cam1.transform.localEulerAngles.x, cam1.transform.localEulerAngles.y, 0);
+            }
+            if (Input.GetKey(KeyCode.UpArrow))
+            {
+                
+                cam1.transform.Rotate(Vector3.left * 30 * accInt * Time.deltaTime);
+                cam1.transform.localEulerAngles = new Vector3(cam1.transform.localEulerAngles.x, cam1.transform.localEulerAngles.y, 0);
+            }
+            if (Input.GetKey(KeyCode.DownArrow))
+            {
+                cam1.transform.Rotate(Vector3.right * 30 * accInt * Time.deltaTime);//小车控制时，前进后退movespeed前都有负号
+                cam1.transform.localEulerAngles = new Vector3(cam1.transform.localEulerAngles.x, cam1.transform.localEulerAngles.y, 0);
+            }
+            if (Input.GetKey(KeyCode.O))
+            {
+                cam1.transform.Rotate(Vector3.forward * 30 * accInt * Time.deltaTime);//小车控制时，前进后退movespeed前都有负号
+                cam1.transform.localEulerAngles = new Vector3(cam1.transform.localEulerAngles.x, cam1.transform.localEulerAngles.y, 0);
+            }
+            if (Input.GetKey(KeyCode.P))
+            {
+                cam1.transform.Rotate(Vector3.back * 30 * accInt * Time.deltaTime);//小车控制时，前进后退movespeed前都有负号
+                cam1.transform.localEulerAngles = new Vector3(cam1.transform.localEulerAngles.x, cam1.transform.localEulerAngles.y, 0);
+            }
+
+        }
+
+        if (isScale)
+        {
+            if (Input.GetKey(KeyCode.Z))
+            {
+                if (cam1.transform.localScale.x > 0|| cam1.transform.localScale.y > 0|| cam1.transform.localScale.z > 0)
+                    cam1.transform.localScale += new Vector3(0.003f * accInt, 0.003f * accInt, 0.003f * accInt);
+            }
+            if (Input.GetKey(KeyCode.X))
+            {
+                if (cam1.transform.localScale.x > 0 || cam1.transform.localScale.y > 0 || cam1.transform.localScale.z > 0)
+                    cam1.transform.localScale -= new Vector3(0.003f * accInt, 0.003f * accInt, 0.003f * accInt);
+            }
+            if (Input.GetKey(KeyCode.C))
+            {
+                if (cam1.transform.localScale.x > 0)
+                    cam1.transform.localScale += new Vector3(0.003f * accInt, 0, 0);
+            }
+            if (Input.GetKey(KeyCode.V))
+            {
+                if (cam1.transform.localScale.x>0)
+                cam1.transform.localScale -= new Vector3(0.003f * accInt, 0, 0);
+            }
+            if (Input.GetKey(KeyCode.B))
+            {
+                if (cam1.transform.localScale.y > 0)
+                    cam1.transform.localScale += new Vector3(0, 0.003f * accInt, 0);
+            }
+            if (Input.GetKey(KeyCode.N))
+            {
+                if (cam1.transform.localScale.y > 0)
+                    cam1.transform.localScale -= new Vector3(0, 0.003f * accInt, 0);
+            }
+            if (Input.GetKey(KeyCode.M))
+            {
+                if (cam1.transform.localScale.z > 0)
+                    cam1.transform.localScale += new Vector3(0, 0, 0.003f * accInt);
+            }
+            if (Input.GetKey(KeyCode.L))
+            {
+                if (cam1.transform.localScale.z > 0)
+                    cam1.transform.localScale -= new Vector3(0, 0, 0.003f * accInt);
+            }
+        }
+    }
+
+    private void Update()// 最后优化记得把if和else变成list或switch，增加速度,该变静态变静态，查看所有方法是否变静态，然后看==能不能换成equal或者typeof
+    {
+
+        if (isCam)
+            TestM(cam);
+        else if (isMove || record != null)
+            TestM(record);
+        else if (isRotate || record != null)
+            TestM(record);
+        else if (isScale || record != null)
+            TestM(record);
+
+
+        if (isCam)
+        {
+            FingerControl(cam.transform);
+        }
+        else
+        {
+            if (isMove)
+            {
+                if (record != null)
+                {
+                    FingerControl(record.transform);
+                    moveAxis.transform.position = record.transform.position;
+                }
+                else
+                {
+                    if (Input.GetMouseButtonDown(0)) //判断是否按下左键
+                    {
+                        Ray ray = Camera.main.ScreenPointToRay(Input.mousePosition);
+                        RaycastHit hit;
+                        if (Physics.Raycast(ray, out hit))
+                        {
+                            if (hit.transform.tag.Equals("Prefab"))
+                            {
+                                record = hit.collider.gameObject;
+                                FindUP();
+                                //record.GetComponent<Renderer>().material.shader = Shader.Find("Skin/C52");
+                                ShaderShow(record, true);
+                                activeObj.SetActive(true);
+                                moveAxis.SetActive(true);
+                                moveAxis.transform.position = record.transform.position;
+                                //if (record.transform.childCount > 0)
+                                //    moveAxis.transform.SetParent(record.transform.GetChild(0));
+                                //else
+                                //    moveAxis.transform.SetParent(record.transform);
+                            }
+                        }
+                    }
+                }
+
+
+            }
+            else if (isRotate)
+            {
+
+                if (record != null)
+                {
+                    Rotate(record.transform);
+                    rotateAxis.transform.rotation = record.transform.rotation;
+                }
+                else
+                {
+                    if (Input.GetMouseButtonDown(0)) //判断是否按下左键
+                    {
+                        Ray ray = Camera.main.ScreenPointToRay(Input.mousePosition);
+                        RaycastHit hit;
+                        if (Physics.Raycast(ray, out hit))
+                        {
+                            if (hit.transform.tag.Equals("Prefab"))
+                            {
+                                record = hit.collider.gameObject;
+                                FindUP();
+                                //record.GetComponent<Renderer>().material.shader = Shader.Find("Skin/C52");
+                                ShaderShow(record, true);
+                                activeObj.SetActive(true);
+                                rotateAxis.SetActive(true);
+                                rotateAxis.transform.position = record.transform.position;
+                                //if (record.transform.childCount > 0)
+                                //    rotateAxis.transform.SetParent(record.transform.GetChild(0));
+                                //else
+                                //    rotateAxis.transform.SetParent(record.transform);
+                            }
+                        }
+                    }
+                }
+
+            }
+            else if (isScale)
+            {
+                if (record != null)
+                {
+                    Scale(record.transform);
+                }
+                else
+                {
+                    if (Input.GetMouseButtonDown(0)) //判断是否按下左键
+                    {
+                        Ray ray = Camera.main.ScreenPointToRay(Input.mousePosition);
+                        RaycastHit hit;
+                        if (Physics.Raycast(ray, out hit))
+                        {
+                            if (hit.transform.tag.Equals("Prefab"))
+                            {
+                                record = hit.collider.gameObject;
+                                FindUP();
+                                //record.GetComponent<Renderer>().material.shader = Shader.Find("Skin/C52");
+                                ShaderShow(record, true);
+                                activeObj.SetActive(true);
+                                rotateAxis.SetActive(true);
+                                rotateAxis.transform.position = record.transform.position;
+                            }
+                        }
+                    }
+
+                }
+            }
+            else if (isScript)
+            {
+                if (Input.GetMouseButtonDown(0)) //判断是否按下左键
+                {
+                    if (click)
+                    {
+                        Ray ray = Camera.main.ScreenPointToRay(Input.mousePosition);
+                        RaycastHit hit;
+                        if (Physics.Raycast(ray, out hit))
+                        {
+                            if (hit.transform.tag.Equals("Prefab") || hit.transform.tag.Equals("Player"))
+                            {
+                                record = hit.collider.gameObject;
+
+                                ShaderShow(record, true);
+
+                                click = false;
+                            }
+                        }
+                    }
+                    else
+                    {
+                        if (goOn)
+                        {
+                            //发射线
+                            Ray ray = Camera.main.ScreenPointToRay(Input.mousePosition);
+                            RaycastHit hit;
+                            if (Physics.Raycast(ray, out hit))
+                            {
+                                if (hit.transform.tag.Equals("Prefab") || hit.transform.tag.Equals("Player"))
+                                {
+                                    if (hit.collider.gameObject.Equals(record))
+                                    {
+                                        StartCoroutine(ShowWarn(warnNull));
+                                    }
+                                    else
+                                    {
+                                        record1 = hit.collider.gameObject;
+                                        ShaderShow(record1, true);
+                                        goOn = false;
+                                    }
+
+                                }
+                                else
+                                {
+                                    //这里写跳出UI程序，显示请点击物体
+                                }
+                            }
+                        }
+                        else
+                        {
+                            //发射线
+                            Ray ray = Camera.main.ScreenPointToRay(Input.mousePosition);
+                            RaycastHit hit;
+                            if (Physics.Raycast(ray, out hit))
+                            {
+                                if (hit.transform.tag.Equals("Prefab") || hit.transform.tag.Equals("Player"))
+                                {
+                                    if (hit.collider.gameObject.Equals(record) || hit.collider.gameObject.Equals(record1))
+                                    {
+                                        if (record.GetComponent<FixedJoint>() != null)
+                                            if (record.GetComponent<FixedJoint>().connectedBody.Equals(record1.GetComponent<Rigidbody>()))
+                                            {
+                                                Destroy(record.GetComponent<FixedJoint>());
+                                                ShaderShow(record, false);
+                                                ShaderShow(record1, false);
+                                                isScript = false;
+                                                record = null;
+                                                record1 = null;
+                                                concel.SetActive(false);
+                                                OtherClass.UIActive = true;
+                                                isCam = true;
+                                                opeObj[9].GetComponent<Image>().color = Color.white;
+                                                opeObj[0].GetComponent<Image>().color = Color.gray;
+                                                goOn = true;
+                                                return;
+                                            }
+
+                                        if (record.GetComponent<HingeJoint>() != null)
+                                            if (record.GetComponent<HingeJoint>().connectedBody.Equals(record1.GetComponent<Rigidbody>()))
+                                            {
+                                                Destroy(record.GetComponent<HingeJoint>());
+                                                ShaderShow(record, false);
+                                                ShaderShow(record1, false);
+                                                isScript = false;
+                                                record = null;
+                                                record1 = null;
+                                                concel.SetActive(false);
+                                                OtherClass.UIActive = true;
+                                                isCam = true;
+                                                opeObj[9].GetComponent<Image>().color = Color.white;
+                                                opeObj[0].GetComponent<Image>().color = Color.gray;
+                                                goOn = true;
+                                                return;
+                                            }
+
+                                        if (record1.GetComponent<HingeJoint>() != null)
+                                            if (record1.GetComponent<HingeJoint>().connectedBody.Equals(record.GetComponent<Rigidbody>()))
+                                            {
+                                                Destroy(record1.GetComponent<HingeJoint>());
+                                                ShaderShow(record, false);
+                                                ShaderShow(record1, false);
+                                                isScript = false;
+                                                record = null;
+                                                record1 = null;
+                                                concel.SetActive(false);
+                                                OtherClass.UIActive = true;
+                                                isCam = true;
+                                                opeObj[9].GetComponent<Image>().color = Color.white;
+                                                opeObj[0].GetComponent<Image>().color = Color.gray;
+                                                goOn = true;
+                                                return;
+                                            }
+
+                                        if (record1.GetComponent<FixedJoint>() != null)
+                                            if (record1.GetComponent<FixedJoint>().connectedBody.Equals(record.GetComponent<Rigidbody>()))
+                                            {
+                                                Destroy(record1.GetComponent<FixedJoint>());
+                                                ShaderShow(record, false);
+                                                ShaderShow(record1, false);
+                                                isScript = false;
+                                                record = null;
+                                                record1 = null;
+                                                concel.SetActive(false);
+                                                OtherClass.UIActive = true;
+                                                isCam = true;
+                                                opeObj[9].GetComponent<Image>().color = Color.white;
+                                                opeObj[0].GetComponent<Image>().color = Color.gray;
+                                                goOn = true;
+                                                return;
+                                            }
+                                        StartCoroutine(ShowWarn(warnNo));
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                else if (isCopy)
+                {
+                    if (Input.GetMouseButtonDown(0)) //判断是否按下左键
+                    {
+                        if (click)
+                        {
+                            Ray ray = Camera.main.ScreenPointToRay(Input.mousePosition);
+                            RaycastHit hit;
+                            if (Physics.Raycast(ray, out hit))
+                            {
+                                if (hit.transform.tag.Equals("Prefab") || hit.transform.tag.Equals("Player"))
+                                {
+                                    record = hit.collider.gameObject;
+
+                                    FindUP();
+
+                                    ShaderShow(record, true);
+
+                                    //clickUI.SetActive(true);
+                                    click = false;
+                                }
+                            }
+                        }
+                        else
+                        {
+                            //发射线
+                            Ray ray = Camera.main.ScreenPointToRay(Input.mousePosition);
+                            RaycastHit hit;
+                            if (Physics.Raycast(ray, out hit))
+                            {
+                                if (hit.transform.tag.Equals("Prefab") || hit.transform.tag.Equals("Player"))
+                                {
+                                    if (hit.collider.gameObject.Equals(record))
+                                    {
+                                        CopyFuncation();
+                                        return;
+                                    }
+                                    else if (record.transform.childCount > 0)
+                                    {
+                                        if (record.transform.GetChild(0).gameObject.Equals(hit.collider.gameObject))
+                                        {
+                                            CopyFuncation();
+                                            return;
+                                        }
+                                        else if (record.transform.GetChild(0).childCount > 0)
+                                        {
+                                            if (record.transform.GetChild(0).GetChild(0).gameObject.Equals(hit.collider.gameObject))
+                                            {
+                                                CopyFuncation();
+                                                return;
+                                            }
+                                        }
+
+                                    }
+
+                                    ShaderShow(record, false);
+                                    record = hit.collider.gameObject;
+                                    FindUP();
+                                    ShaderShow(record, true);
+                                }
+                                else
+                                {
+                                    //这里写跳出UI程序，显示请点击物体
+                                }
+                            }
+
+                        }
+                    }
+                }
+            }
+        }
+    }
+    private static int choose = -1;
+
+    private static GameObject Create()
+    {
+        if (PoolsManager.instance.currentIndex[choose] > 0)
+        {
+            return PoolsManager.instance.Create(choose, record, record.transform.position, record.transform.rotation, record.transform.localScale);
+        }
+        else
+        {
+            return PoolsManager.instance.Create(choose, record, record.transform.position, record.transform.rotation, record.transform.localScale);
+        }
+    }
+
+
+    private void CopyFuncation()
+    {
+        ShaderShow(record, false);
+
+        for (int i = 0; i < 5; ++i)
+            if (record.transform.parent.tag.Equals("Finish"))
+            {
+                break;
+            }
+            else
+            {
+                record = record.transform.parent.gameObject;
+            }
+
+
+        for (int i = 0; i < PoolsCreate.prefab1.Length; ++i)
+        {
+            if (PoolsCreate.prefab1[i].name.Substring(0, 3).Equals(record.name.Substring(0, 3)))
+            {
+                choose = i;
+            }
+        }
+        //for (int i = 0; i < PoolsManager.instance.pools.Count; ++i)
+        //{
+        //    for (int j = 0; j < PoolsManager.instance.pools[i].Count; ++j)
+        //    {
+        //        if (PoolsManager.instance.pools[0][0].Equals(secObj))
+        //        {
+        //            PoolsCreate.choose = i;
+        //        }
+        //    }
+        //}
+        //record = Create(record.transform.position, record.transform.rotation, record.transform.localScale);
+        record = Create();
+        if (record.GetComponent<FixedJoint>() != null)
+            Destroy(record.GetComponent<FixedJoint>());
+        if (record.GetComponent<HingeJoint>() != null)
+            Destroy(record.GetComponent<HingeJoint>());
+        ShaderShow(record, false);
+        choose = -1;
+
+        PoolsCreate.objGroup.Add(record);
+
+        OtherClass.UIActive = false;
+        OperatorObj.isCam = false;
+
+        isMove = true;
+        click = true;
+        isCopy = false;
+        activeObj.SetActive(true);
+        moveAxis.SetActive(true);
+
+        moveAxis.transform.position = record.transform.position;
+
+    }
+
+    private static void FindUP()
+    {
+        for (int i = 0; i < 5; ++i)
+            if (record.transform.parent.tag.Equals("Finish"))
+            {
+                break;
+            }
+            else
+            {
+                record = record.transform.parent.gameObject;
+            }
+    }
+
+    public static GameObject FindUpRecord(GameObject obj)
+    {
+        for (int i = 0; i < 5; ++i)
+            if (obj.transform.parent.tag.Equals("Finish"))
+            {
+                return obj;
+            }
+            else
+            {
+                Debug.Log(obj.transform.parent.tag);
+                obj = obj.transform.parent.gameObject;
+            }
+        return null;
+    }
+
+    private static void ShaderShow(GameObject obj,bool type)
+    {
+        if (type)
+        {
+            Transform child = obj.transform;
+            if (obj.GetComponent<Renderer>() != null)//最顶级的物体
+            {
+                obj.GetComponent<Renderer>().material.shader = Shader.Find("Sbin/Lighting");
+                obj.GetComponent<Renderer>().material.SetTexture("_MainTex", PoolsCreate.lightCopy1);
+                obj.GetComponent<Renderer>().material.SetTexture("_FlashTex", PoolsCreate.lightCopy2);
+                obj.GetComponent<Renderer>().material.SetTexture("_MaskTex", PoolsCreate.lightCopy3);
+            }
+
+            if (child.childCount > 0)//二级
+                for (int i = 0; i < child.childCount; ++i)
+                {
+                    child.GetChild(i).GetComponent<Renderer>().material.shader = Shader.Find("Sbin/Lighting");
+                    child.GetChild(i).GetComponent<Renderer>().material.SetTexture("_MainTex", PoolsCreate.lightCopy1);
+                    child.GetChild(i).GetComponent<Renderer>().material.SetTexture("_FlashTex", PoolsCreate.lightCopy2);
+                    child.GetChild(i).GetComponent<Renderer>().material.SetTexture("_MaskTex", PoolsCreate.lightCopy3);
+                    if (child.GetChild(i).childCount > 0)//三级
+                    {
+                        for (int j = 0; j < child.GetChild(i).childCount; ++j)
+                        {
+                            child.GetChild(i).GetChild(j).GetComponent<Renderer>().material.shader = Shader.Find("Sbin/Lighting");
+                            child.GetChild(i).GetChild(j).GetComponent<Renderer>().material.SetTexture("_MainTex", PoolsCreate.lightCopy1);
+                            child.GetChild(i).GetChild(j).GetComponent<Renderer>().material.SetTexture("_FlashTex", PoolsCreate.lightCopy2);
+                            child.GetChild(i).GetChild(j).GetComponent<Renderer>().material.SetTexture("_MaskTex", PoolsCreate.lightCopy3);
+                            if (child.GetChild(i).GetChild(j).childCount > 0)
+                                for (int k = 0; k < child.GetChild(i).GetChild(j).childCount; ++k)//四级
+                                {
+                                    child.GetChild(i).GetChild(j).GetChild(k).GetComponent<Renderer>().material.shader = Shader.Find("Sbin/Lighting");
+                                    child.GetChild(i).GetChild(j).GetChild(k).GetComponent<Renderer>().material.SetTexture("_MainTex", PoolsCreate.lightCopy1);
+                                    child.GetChild(i).GetChild(j).GetChild(k).GetComponent<Renderer>().material.SetTexture("_FlashTex", PoolsCreate.lightCopy2);
+                                    child.GetChild(i).GetChild(j).GetChild(k).GetComponent<Renderer>().material.SetTexture("_MaskTex", PoolsCreate.lightCopy3);
+                                }
+                        }
+                    }
+                }
+        }
+        else
+        {
+            Transform child = obj.transform;
+            if (obj.GetComponent<Renderer>() != null)//最顶级的物体
+                obj.GetComponent<Renderer>().material.shader = Shader.Find("Standard");
+            if (child.childCount > 0)//二级
+                for (int i = 0; i < child.childCount; ++i)
+                {
+                    child.GetChild(i).GetComponent<Renderer>().material.shader = Shader.Find("Standard");
+                    if (child.GetChild(i).childCount > 0)//三级
+                    {
+                        for (int j = 0; j < child.GetChild(i).childCount; ++j)
+                        {
+                            child.GetChild(i).GetChild(j).GetComponent<Renderer>().material.shader = Shader.Find("Standard");
+                            if (child.GetChild(i).GetChild(j).childCount > 0)
+                                for (int k = 0; k < child.GetChild(i).GetChild(j).childCount; ++k)//四级
+                                {
+                                    child.GetChild(i).GetChild(j).GetChild(k).GetComponent<Renderer>().material.shader = Shader.Find("Standard");
+                                }
+                        }
+                    }
+                }
+        }
+    }
+
+    private void Move(Transform obj)
+    {
+        //通过if进行判断即可
+        if (!EventSystem.current.IsPointerOverGameObject())
+        {
+            if (Input.GetMouseButton(0))     //用户交互的键入
+            {
+                obj.position = Vector3.SmoothDamp(obj.position, obj.position +
+                    new Vector3(-Input.GetAxis("Mouse X"), -Input.GetAxis("Mouse Y"), 0), ref currentVelocity, smoothTime);
+            }
+        }
+
+    }
+
+    private void Rotate(Transform obj)
+    {
+        if (!EventSystem.current.IsPointerOverGameObject())
+        {
+            if (Input.GetMouseButton(0))     //用户交互的键入
+            {
+                Vector2 deltaPos = new Vector2(Input.GetAxis("Mouse X"), -Input.GetAxis("Mouse Y"));
+                obj.Rotate(Vector3.down * deltaPos.x, Space.World);
+                obj.Rotate(Vector3.right * deltaPos.y, Space.World);
+            }
+        }
+
+    }
+    private void Scale(Transform obj)
+    {
+        if (!EventSystem.current.IsPointerOverGameObject())
+        {
+            if (Input.GetMouseButton(0))     //用户交互的键入
+            {
+                Vector2 deltaPos = new Vector2(Input.GetAxis("Mouse X"), -Input.GetAxis("Mouse Y"));
+                float scaleFactor = deltaPos.x / 100f;
+                Vector3 localScale = obj.localScale;
+                Vector3 scale = new Vector3(localScale.x + scaleFactor,
+                                            localScale.y + scaleFactor,
+                                            localScale.z + scaleFactor);
+
+                //最小缩放到 0.3 倍  
+                if (scale.x > 0.3f && scale.y > 0.3f && scale.z > 0.3f)
+                {
+                    obj.localScale = scale;
+                }
+            }
+        }
+
+    }
+    /// <summary>
+    /// 单指、双指操作。这里举例为单指操作模型旋转，双指同向移动操作模型平移，双指反向移动操作模型缩放。单指操作不再赘述，双指操作我选用向量判断
+    /// </summary>
+    Vector3 preSingleTouchPosition;
+    Vector3 oldPosition1;
+    Vector3 oldPosition2;
+    Vector3 currentScale;
+    Vector3 currentPosition;
+    float beginTouchDistance;
+    bool isSingleFinger;
+
+    public void SingleTouch()//单指控制
+    {
+        Debug.Log("SingleTouch");
+        if (Input.GetTouch(0).phase == TouchPhase.Began || !isSingleFinger)
+        {
+            //在开始触摸或者从两字手指放开回来的时候记录一下触摸的位置  
+            preSingleTouchPosition = Input.GetTouch(0).position;
+        }
+        if (Input.GetTouch(0).phase == TouchPhase.Moved)
+        {
+            cam.transform.Rotate(Vector3.up, -Input.GetTouch(0).deltaPosition.x * 0.5f);
+            preSingleTouchPosition = Input.GetTouch(0).position;
+        }
+        isSingleFinger = true;
+    }
+
+    public void DoubleTouch()//多指控制
+    {
+        Debug.Log("DoubleTouch:" + Vector2.Distance(Input.GetTouch(0).position, Input.GetTouch(1).position));
+        if (isSingleFinger)
+        {
+            oldPosition1 = Input.GetTouch(0).position;
+            oldPosition2 = Input.GetTouch(1).position;
+            beginTouchDistance = Vector2.Distance(Input.GetTouch(0).position, Input.GetTouch(1).position);
+            currentScale = cam.transform.localScale;
+            currentPosition = cam.transform.localPosition;
+        }
+
+        if (Input.GetTouch(0).phase == TouchPhase.Moved && Input.GetTouch(1).phase == TouchPhase.Moved)
+        {
+            Vector2 xiangliang1 = Input.GetTouch(0).position - new Vector2(oldPosition1.x, oldPosition1.y);
+            Vector2 xiangliang2 = Input.GetTouch(1).position - new Vector2(oldPosition2.x, oldPosition2.y);
+            float dir = Vector2.Dot(xiangliang1.normalized, xiangliang2.normalized);
+            if (dir <= 1 && dir >= 0)
+            {
+                cam.transform.Translate(Input.GetTouch(0).deltaPosition.x * 0.01f, Input.GetTouch(1).deltaPosition.y * 0.01f, 0, Space.World);
+            }
+            else if (dir >= -1 && dir < 0)
+            {
+                float currentTouchDistance = Vector2.Distance(Input.GetTouch(0).position, Input.GetTouch(1).position);
+                float tmpScale = currentTouchDistance / beginTouchDistance - 1f;
+                tmpScale += currentScale.x;
+                tmpScale = Mathf.Clamp(tmpScale, 0.5f, 3f);
+                cam.transform.localScale = Vector3.one * tmpScale;
+
+            }
+        }
+        isSingleFinger = false;
+    }
+
+    private float smoothTime = 0.01f;//移动所需的时间，值越小越快移动到目标处
+    private Vector3 currentVelocity = Vector3.zero;//当前速度，这个值每次调用SmoothDamp这个函数时被修改
+    private Touch oldTouch1;  //上次触摸点1(手指1)  
+    private Touch oldTouch2;  //上次触摸点2(手指2)
+
+    private void Mve()
+    {
+        if (Input.GetMouseButton(0))     //用户交互的键入
+        {
+            cam.transform.position = Vector3.SmoothDamp(cam.transform.position, cam.transform.position +
+                new Vector3(-Input.GetAxis("Mouse X"), -Input.GetAxis("Mouse Y"), 0), ref currentVelocity, smoothTime);
+
+        }
+    }
+
+    void FingerControl(Transform obj)
+    {
+        if (!EventSystem.current.IsPointerOverGameObject())
+        {
+            if (Input.GetMouseButton(0))     //用户交互的键入
+            {
+                obj.position = Vector3.SmoothDamp(obj.position, obj.position +
+                    new Vector3(-Input.GetAxis("Mouse X") * accInt, -Input.GetAxis("Mouse Y") * accInt, 0), ref currentVelocity, smoothTime);
+            }
+        }
+
+        //没有触摸  
+        if (Input.touchCount <= 0)
+        {
+            return;
+        }
+
+        //单点触摸,水平上下移动
+        if (Input.touchCount == 1 && Input.GetTouch(0).phase == TouchPhase.Moved)
+        {
+            var deltaposition = Input.GetTouch(0).deltaPosition;
+            obj.Translate(-deltaposition.x * 0.1f, 0f, -deltaposition.y * 0.1f);
+        }
+        //单点触摸， 水平上下旋转  
+        if (1 == Input.touchCount)
+        {
+            Touch touch = Input.GetTouch(0);
+            Vector2 deltaPos = touch.deltaPosition;
+            obj.Rotate(Vector3.down * deltaPos.x, Space.World);
+            obj.Rotate(Vector3.right * deltaPos.y, Space.World);
+        }
+
+        //多点触摸, 放大缩小  
+        Touch newTouch1 = Input.GetTouch(0);
+        Touch newTouch2 = Input.GetTouch(1);
+
+        //第2点刚开始接触屏幕, 只记录，不做处理  
+        if (newTouch2.phase == TouchPhase.Began)
+        {
+            oldTouch2 = newTouch2;
+            oldTouch1 = newTouch1;
+            return;
+        }
+
+        //计算老的两点距离和新的两点间距离，变大要放大模型，变小要缩放模型  
+        float oldDistance = Vector2.Distance(oldTouch1.position, oldTouch2.position);
+        float newDistance = Vector2.Distance(newTouch1.position, newTouch2.position);
+
+        //两个距离之差，为正表示放大手势， 为负表示缩小手势  
+        float offset = newDistance - oldDistance;
+
+        //放大因子， 一个像素按 0.01倍来算(100可调整)  
+        float scaleFactor = offset / 100f;
+        Vector3 localScale = obj.localScale;
+        Vector3 scale = new Vector3(localScale.x + scaleFactor,
+                                    localScale.y + scaleFactor,
+                                    localScale.z + scaleFactor);
+
+        //最小缩放到 0.3 倍  
+        if (scale.x > 0.3f && scale.y > 0.3f && scale.z > 0.3f)
+        {
+            obj.localScale = scale;
+        }
+
+        //记住最新的触摸点，下次使用  
+        oldTouch1 = newTouch1;
+        oldTouch2 = newTouch2;
+    }
+
+    void FingerOperator()
+    {
+        if (Input.touchCount > 0)
+        {
+            Touch touch = Input.GetTouch(0);
+            Vector2 touchPosition = Camera.main.ScreenToWorldPoint(touch.position);
+            if (touch.phase == TouchPhase.Began)
+            {
+                isActive = true;
+            }
+            if (touch.phase == TouchPhase.Moved)
+            {
+                if (isActive)
+                {
+                    cam.transform.position = new Vector2(touchPosition.x, touchPosition.y);
+                }
+            }
+            if (touch.phase == TouchPhase.Ended)
+            {
+                isActive = false;
+            }
+        }
+    }
+}
