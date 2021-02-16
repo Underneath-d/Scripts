@@ -1,0 +1,513 @@
+using System;
+using UnityEngine;
+
+public static class MatrixOperation
+{
+    public static double[] CompleteWorks(double[] dataStream, int[,] dataIndex, double[] solutionSet, double[,] locationSet)//全解集，迭代，弦截法，切线法
+    {
+        double accuracy = 0.01;//定义精度
+        bool judge = false;
+        double[,] derivatives = AutomationFunction(dataStream, dataIndex, solutionSet);
+        int countNum = 0;
+
+        while (countNum < 1000)
+        {
+            for (int i = 0; i < derivatives.GetLength(0); ++i)
+            {
+                for (int j = 0; j < derivatives.GetLength(1); ++j)
+                {
+                    Debug.Log("derivatives[ " + i + " ]" + "第" + j + "列元素为：" + derivatives[i, j]);
+                }
+            }
+            if (Determinant(derivatives) != 0)
+            {
+                double[,] equationSolution = MultiplyMatrix(Niwent(derivatives), PrimitiveFunction(dataStream, dataIndex, solutionSet, locationSet));
+            
+                for (int i = 0; i < equationSolution.GetLength(0); ++i)
+                {
+
+                    if (Math.Abs(equationSolution[i, 0]) > accuracy)//不满足精度要求的话
+                    {
+                        judge = true;
+                        break;
+                    
+                }
+                }
+                if (judge)
+                {
+                    for (int m = 0; m < solutionSet.Length; ++m)
+                    {
+                        if (equationSolution[m, 0] > 0)
+                            solutionSet[m] = solutionSet[m] - equationSolution[m, 0];
+                        else
+                            solutionSet[m] = solutionSet[m] - equationSolution[m, 0];
+                    }
+                    countNum++;
+                }
+                else
+                {
+                    Debug.Log("方程已经优化");
+                    countNum = 1000;
+                }
+            }
+            else
+            {
+                Debug.Log("方程无解！！！！！！");
+                double[] cry = { 0 };
+                return cry;
+            }
+        }
+        return solutionSet;
+    }
+
+    private static double FirstSolution(double[] dataStream, int[,] dataIndex, double[] solutionSet, int derivativesRow, int dataIndexNum)//第一类方案方程
+    {
+        if (dataIndex[derivativesRow, dataIndexNum] != -1)//当索引为-1时计作空，空为0，不为空则执行索引
+        {
+            int index = dataIndex[derivativesRow, dataIndexNum];
+            double indexNew = solutionSet[index];//新索引优化
+            int indexOld = dataIndex[derivativesRow, dataIndexNum] + 1;//旧索引优化
+            if (dataStream[dataIndex[derivativesRow, dataIndexNum]] == 0)//当数据流链表中为滑块时候即为0，否则为其他构件
+                return CosAngle(solutionSet[indexOld]) - indexNew * SinAngle(solutionSet[indexOld]);
+            else
+                return -dataStream[index] * SinAngle(indexNew);
+        }
+        else
+        {
+            return 0;
+        }
+    }
+
+    private static double SecondSolution(double[] dataStream, int[,] dataIndex, double[] solutionSet, int derivativesRow, int dataIndexNum)//第二类方案方程
+    {
+        if (dataIndex[derivativesRow, dataIndexNum] != -1)
+        {
+            int index = dataIndex[derivativesRow, dataIndexNum];
+            double indexNew = solutionSet[index];//新索引优化
+            int indexOld = dataIndex[derivativesRow, dataIndexNum] + 1;//旧索引优化
+            if (dataStream[dataIndex[derivativesRow, dataIndexNum]] == 0)
+                return indexNew * CosAngle(solutionSet[indexOld]) + SinAngle(solutionSet[indexOld]);
+            else
+                return dataStream[index] * CosAngle(indexNew);
+        }
+        else
+        {
+            return 0;
+        }
+    }
+
+    private static double[,] PrimitiveFunction(double[] dataStream, int[,] dataIndex, double[] solutionSet, double[,] locationSet)//求原函数，预求误差矩阵
+    {
+        int countRow = 2 * dataIndex.GetLength(0);
+        int countColumn = dataIndex.GetLength(1);
+        double[,] record = new double[countRow, 1];
+        for (int row = 0; row < countRow; row += 2)//奇偶数行同时索引并计算
+        {
+            double solutionOdd = 0;
+            for (int i = 0; i < countColumn; ++i)
+            {
+                int indexData = dataIndex[row / 2, i];
+                if (indexData != -1)
+                {
+                    if (dataStream[indexData] == 0)
+                        solutionOdd += solutionSet[indexData] * CosAngle(solutionSet[indexData + 1]);
+                    else
+                        solutionOdd += dataStream[indexData] * CosAngle(solutionSet[indexData]);
+                }
+            }
+            record[row, 0] = solutionOdd - locationSet[row, 2] + locationSet[row, 0] + locationSet[row, 4] * CosAngle(locationSet[row, 5]);//加入两个固定点和已知的杆信息
+            double solutionEven = 0;
+            for (int i = 0; i < countColumn; ++i)
+            {
+                int indexData = dataIndex[row, i];
+                if (indexData != -1)
+                    if (dataStream[indexData] == 0)
+                        solutionEven += solutionSet[indexData] * SinAngle(solutionSet[indexData + 1]);
+                    else
+                        solutionEven += dataStream[indexData] * SinAngle(solutionSet[indexData]);
+            }
+            record[row + 1, 0] = solutionEven - locationSet[row, 3] + locationSet[row, 1] + locationSet[row, 4] * SinAngle(locationSet[row, 5]);
+        }
+        return record;
+    }
+
+    private static double[,] AutomationFunction(double[] dataStream, int[,] dataIndex, double[] solutionSet)//链表控制，自动运动函数，返回雅可比矩阵
+    {
+        int count = 2 * dataIndex.GetLength(0);//获取物体矩阵的行数
+        double[,] derivatives = new double[count, count];//导数方阵
+        for (int i = 0; i < count; ++i)//清零
+        {
+            for (int j = 0; j < count; ++j)
+            {
+                derivatives[i, j] = 0;
+            }
+        }
+        for (int derivativesRow = 0; derivativesRow < count; derivativesRow += 2)//多链表控制，索引开始
+        {
+            for (int indexColumn = 0; indexColumn < count; ++indexColumn)
+            {
+                derivatives[derivativesRow, indexColumn] = FirstSolution(dataStream, dataIndex, solutionSet, derivativesRow, indexColumn);
+                derivatives[derivativesRow + 1, indexColumn] = SecondSolution(dataStream, dataIndex, solutionSet, derivativesRow, indexColumn);
+            }
+        }
+        return derivatives;
+    }
+
+    public static double[,] Athwart(double[,] iMatrix)//求矩阵的逆
+    {
+        int i;
+        int row = iMatrix.GetLength(0);
+        double[,] MatrixZwei = new double[row, row * 2];
+        double[,] iMatrixInv = new double[row, row];
+        for (i = 0; i < row; i++)
+        {
+            for (int j = 0; j < row; j++)
+            {
+                MatrixZwei[i, j] = iMatrix[i, j];
+            }
+        }
+        for (i = 0; i < row; i++)
+        {
+            for (int j = row; j < row * 2; j++)
+            {
+                MatrixZwei[i, j] = 0;
+                if (i + row == j)
+                    MatrixZwei[i, j] = 1;
+            }
+        }
+
+        for (i = 0; i < row; i++)
+        {
+            if (MatrixZwei[i, i] != 0)
+            {
+                double intTemp = MatrixZwei[i, i];
+                for (int j = 0; j < row * 2; j++)
+                {
+                    MatrixZwei[i, j] = MatrixZwei[i, j] / intTemp;
+                }
+            }
+            for (int j = 0; j < row; j++)
+            {
+                if (j == i)
+                    continue;
+                double intTemp = MatrixZwei[j, i];
+                for (int k = 0; k < row * 2; k++)
+                {
+                    MatrixZwei[j, k] = MatrixZwei[j, k] - MatrixZwei[i, k] * intTemp;
+                }
+            }
+        }
+
+        for (i = 0; i < row; i++)
+        {
+            for (int j = 0; j < row; j++)
+            {
+                iMatrixInv[i, j] = MatrixZwei[i, j + row];
+            }
+        }
+        return iMatrixInv;
+    }
+
+    public static double[,] AddMatrix(double[,] MatrixEin, double[,] MatrixZwei)  //矩阵加法 
+    {
+        double[,] MatrixResult = new double[MatrixEin.GetLength(0), MatrixZwei.GetLength(1)];
+        for (int i = 0; i < MatrixEin.GetLength(0); i++)
+            for (int j = 0; j < MatrixZwei.GetLength(1); j++)
+                MatrixResult[i, j] = MatrixEin[i, j] + MatrixZwei[i, j];
+        return MatrixResult;
+    }
+
+    public static double[,] SubMatrix(double[,] MatrixEin, double[,] MatrixZwei)    //矩阵减法 
+    {
+        double[,] MatrixResult = new double[MatrixEin.GetLength(0), MatrixZwei.GetLength(1)];
+        for (int i = 0; i < MatrixEin.GetLength(0); i++)
+            for (int j = 0; j < MatrixZwei.GetLength(1); j++)
+                MatrixResult[i, j] = MatrixEin[i, j] - MatrixZwei[i, j];
+        return MatrixResult;
+    }
+
+    public static double[,] MultiplyMatrix(double[,] MatrixEin, double[,] MatrixZwei)    //矩阵乘法 
+    {
+        double[,] MatrixResult = new double[MatrixEin.GetLength(0), MatrixZwei.GetLength(1)];
+        for (int i = 0; i < MatrixEin.GetLength(0); i++)
+        {
+            for (int j = 0; j < MatrixZwei.GetLength(1); j++)
+            {
+                for (int k = 0; k < MatrixEin.GetLength(1); k++)
+                {
+                    MatrixResult[i, j] += MatrixEin[i, k] * MatrixZwei[k, j];
+                }
+            }
+        }
+        return MatrixResult;
+    }
+
+    public static double ResultDeterminant(double[,] MatrixEin)//矩阵对应行列式的值
+    {
+        return MatrixEin[0, 0] * MatrixEin[1, 1] * MatrixEin[2, 2] + MatrixEin[0, 1] * MatrixEin[1, 2] * MatrixEin[2, 0] + MatrixEin[0, 2] * MatrixEin[1, 0] * MatrixEin[2, 1]
+        - MatrixEin[0, 2] * MatrixEin[1, 1] * MatrixEin[2, 0] - MatrixEin[0, 1] * MatrixEin[1, 0] * MatrixEin[2, 2] - MatrixEin[0, 0] * MatrixEin[1, 2] * MatrixEin[2, 1];
+
+    }
+
+    public static double[,] MatrixMultiplication(double[,] A, double[,] B)//矩阵相乘
+    {
+        int m, p, n;
+        m = A.GetLength(0);
+        p = A.GetLength(1);
+        if (p != B.GetLength(0)) return null;
+        n = B.GetLength(1);
+        double[,] C = new double[m, n];
+        for (int i = 0; i < m; i++)
+        {
+            for (int j = 0; j < n; j++)
+            {
+                double sum = 0;
+                for (int k = 0; k < p; k++)
+                {
+                    sum = sum + A[i, k] * B[k, j];
+                }
+                C[i, j] = sum;
+            }
+        }
+        return C;
+    }
+
+    static double Determinant(double[,] matrix)//矩阵行列式，展开式
+    {
+        //二阶及以下行列式直接计算
+        int judge = matrix.GetLength(0);
+        if (judge == 0) return 0;
+        else if (judge == 1) return matrix[0, 0];
+        else if (judge == 2)
+        {
+            return matrix[0, 0] * matrix[1, 1] - matrix[0, 1] * matrix[1, 0];
+        }
+        //对第一行使用“加边法”递归计算行列式的值
+        double matrixSum = 0, matrixSign = 1;
+        for (int i = 0; i < judge; i++)
+        {
+            double[][] matrixTemp = new double[judge - 1][];
+            for (int count = 0; count < judge - 1; count++)
+            {
+                matrixTemp[count] = new double[judge - 1];
+            }
+            int Num = matrixTemp.Length;
+            for (int j = 0; j < Num; j++)
+            {
+                for (int k = 0; k < Num; k++)
+                {
+                    matrixTemp[j][k] = matrix[j + 1, k >= i ? k + 1 : k];
+                }
+            }
+            double[,] result = new double[Num, Num];
+            for (int j = 0; j < Num; j++)
+            {
+                for (int k = 0; k < Num; k++)
+                {
+                    result[j, k] = matrixTemp[j][k];
+                }
+            }
+            matrixSum += (matrix[0, i] * matrixSign * Determinant(result));
+            matrixSign = matrixSign * -1;
+        }
+        return matrixSum;
+    }
+
+
+    public static double CosAngle(double angle)//按照角度计算cos
+    {
+        return Math.Cos(angle * Math.PI / 180); //角度×π÷180°
+    }
+
+    public static double SinAngle(double angle)//按照角度计算sin
+    {
+        return Math.Sin(angle * Math.PI / 180); //角度×π÷180°
+    }
+
+    public static double[,] Niwent(double[,] A)
+    {
+        int n;
+        n = A.GetLength(0);
+        if (n != A.GetLength(1)) return null;
+        double[,] C = new double[n, 2 * n];
+        double[,] D = new double[n, n];
+        for (int i = 0; i < n; i++)
+            for (int j = 0; j < n; j++)
+                C[i, j] = A[i, j];
+        for (int i = 0; i < n; i++)
+            C[i, i + n] = 1;
+        for (int k = 0; k < n; k++)
+        {
+            double max = Math.Abs(C[k, k]);
+            int ii = k;
+            for (int m = k + 1; m < n; m++)
+                if (max < Math.Abs(C[m, k]))
+                {
+                    max = Math.Abs(C[m, k]);
+                    ii = m;
+                }
+            for (int m = k; m < 2 * n; m++)
+            {
+                if (ii == k) break;
+                double c;
+                c = C[k, m];
+                C[k, m] = C[ii, m];
+                C[ii, m] = c;
+            }
+            if (C[k, k] != 1)
+            {
+                double bs = C[k, k];
+                if (bs == 0)
+                {
+                    Console.WriteLine("求逆错误！结果可能不正确！");
+                    break;
+                    //return null;
+                }
+                C[k, k] = 1;
+                for (int p = k + 1; p < n * 2; p++)
+                {
+                    C[k, p] /= bs;
+                }
+            }
+            for (int q = k + 1; q < n; q++)
+            {
+                double bs = C[q, k];
+                for (int p = k; p < n * 2; p++)
+                {
+                    C[q, p] -= bs * C[k, p];
+                }
+            }
+        }
+        for (int q = n - 1; q > 0; q--)
+        {
+            for (int k = q - 1; k > -1; k--)
+            {
+                double bs = C[k, q];
+                for (int m = k + 1; m < 2 * n; m++)
+                {
+                    C[k, m] -= bs * C[q, m];
+                }
+            }
+        }
+        for (int i = 0; i < n; i++)
+            for (int j = 0; j < n; j++)
+                D[i, j] = C[i, j + n];
+        return D;
+    }
+
+
+
+    //利用导函数定义求导数，结果不够精确，迭代次数越多，会产生越大误差，忽略，若有复杂函数，迭代次数少，或者不迭代，仍可用
+    public static double FirstSolutionOne(double[] dataStream, int[,] dataIndex, double[] solutionSet, int derivativesRow, int dataIndexNum)//第一类方案方程
+    {
+        double stepLength = 0.001;//定义求导的步长
+        double solution;
+        int indexNew = dataIndex[derivativesRow, dataIndexNum];//新索引优化
+        int indexOld = dataIndex[derivativesRow, dataIndexNum] + 1;//旧索引优化
+        if (dataIndex[derivativesRow, dataIndexNum] != -1)//当索引为-1时计作空，空为0，不为空则执行索引
+            if (dataStream[dataIndex[derivativesRow, dataIndexNum]] == 0)//当数据流链表中为滑块时候即为0，否则为其他构件
+                solution = 18 * 3.14 * ((solutionSet[indexNew] + stepLength) * CosAngle(solutionSet[indexOld]) -
+                            solutionSet[indexNew] * CosAngle(solutionSet[indexOld])) / stepLength;
+            else
+                solution = 18 * 3.14 * (dataStream[indexNew] * CosAngle(solutionSet[indexNew] + stepLength) -
+                            dataStream[indexNew] * CosAngle(solutionSet[indexNew])) / stepLength;
+        else
+            return 0;
+        //        Debug.Log(dataStream[indexNew] * CosAngle(solutionSet[indexNew]));
+        //Debug.Log(solution+"::firstdi::"+dataIndexNum+"ci."+"hang::"+derivativesRow);
+        return solution;
+    }
+
+    //利用导函数定义求导数，结果不够精确，迭代次数越多，会产生越大误差，忽略，若有复杂函数，迭代次数少，或者不迭代，仍可用
+    public static double SecondSolutionOne(double[] dataStream, int[,] dataIndex, double[] solutionSet, int derivativesRow, int dataIndexNum)//第二类方案方程
+    {
+        double stepLength = 0.001;//定义求导的步长
+        double solution;
+        int indexNew = dataIndex[derivativesRow, dataIndexNum];//新索引优化
+        int indexOld = dataIndex[derivativesRow, dataIndexNum] + 1;//旧索引优化
+        if (dataIndex[derivativesRow, dataIndexNum] != -1)
+            if (dataStream[dataIndex[derivativesRow, dataIndexNum]] == 0)
+                solution = 18 * 3.14 * ((solutionSet[indexNew] + stepLength) * SinAngle(solutionSet[indexOld]) -
+                            solutionSet[indexNew]) * SinAngle(solutionSet[indexOld]) / stepLength;
+            else
+                solution = 18 * 3.14 * (dataStream[indexNew] * SinAngle(solutionSet[indexNew] + stepLength) -
+                            dataStream[indexNew] * SinAngle(solutionSet[indexNew])) / stepLength;
+        else
+            return 0;
+        //        Debug.Log(solution + "::seconddi::" + dataIndexNum + "ci."+"hang::"+derivativesRow);
+        return solution;
+    }
+
+    public static double PrimitiveEquationOne(double[] dataStream, int[,] dataIndex, double[] solutionSet, double[,] locationSet, int row)//求原函数的cos方向值
+    {
+        double solution = 0;
+        for (int i = 0; i < dataIndex.GetLength(1); ++i)
+        {
+            if (dataIndex[row, i] != -1)
+                if (dataStream[dataIndex[row, i]] == 0)
+                    solution += solutionSet[dataIndex[row, i]] * CosAngle(solutionSet[dataIndex[row, i] + 1]);
+                else
+                    solution += dataStream[dataIndex[row, i]] * CosAngle(solutionSet[dataIndex[row, i]]);
+        }
+        return solution - locationSet[row, 3] + locationSet[row, 2];
+    }
+
+
+    public static double[,] PrimitiveFunctionOne(double[,] dataStream, int[,] dataLinkedList)//原函数
+    {
+        int count = dataStream.GetLength(0);//获取物体矩阵的行数
+        double[,] primitive = new double[count, 1];//原函数方阵
+        for (int i = 0; i < count; i += 2)
+        {
+            primitive[i, 0] = dataStream[dataLinkedList[2, i], i];
+            primitive[i + 1, 0] = dataStream[dataLinkedList[2, i] + 1, i];
+        }
+        return primitive;
+    }
+
+    public static double[,] AutomationFunctionOne(double[] dataStream, int[,] dataLinkedList, double[,] dataPosition)//链表控制，自动运动函数，返回雅可比矩阵
+    {
+        double stepLength = 0.00000001;//定义求导的步长
+        int count = dataStream.Length;//获取物体矩阵的行数
+        Debug.Log(count);
+        double[,] derivatives = new double[count, count];//导数方阵
+        Debug.Log(derivatives.GetLength(1));
+        Debug.Log(derivatives.GetLength(0));
+        for (int i = 0; i < count; ++i)//清零
+        {
+            for (int j = 0; j < count; ++j)
+            {
+                derivatives[i, j] = 0;
+            }
+        }
+
+        for (int indexRow = 0; indexRow < count; ++indexRow)//获取方阵行列数，链表索引，遍历得到函数
+        {
+            int indexNew = dataLinkedList[indexRow, 2];//新索引性能优化
+            Debug.Log(indexNew);
+            int indexOld = dataLinkedList[indexRow, 1];//旧索引性能优化
+            double relativePosition0 = dataLinkedList[indexRow, 0];//位置链表
+            double relativePosition1 = dataLinkedList[indexRow, 1];
+            if (dataLinkedList[indexRow, 0] == 0)
+            {
+               
+                derivatives[indexRow, dataLinkedList[indexRow, 1]] = (Math.Pow(dataStream[indexNew] - dataStream[indexOld] - stepLength, 2.0) -
+                                                                    Math.Pow(dataStream[indexNew] - dataStream[indexOld], 2.0)) / stepLength;
+                derivatives[indexRow, dataLinkedList[indexRow, 1] + 1] = (Math.Pow(dataStream[indexNew + 1] - dataStream[indexOld + 1] - stepLength, 2.0) -
+                                                                    Math.Pow(dataStream[indexNew + 1] - dataStream[indexOld + 1], 2.0)) / stepLength;
+                derivatives[indexRow, dataLinkedList[indexRow, 2]] = (Math.Pow(dataStream[indexNew] + stepLength - dataStream[indexOld], 2.0) -
+                                                                    Math.Pow(dataStream[indexNew] - dataStream[indexOld], 2.0)) / stepLength;
+                derivatives[indexRow, dataLinkedList[indexRow, 2] + 1] = (Math.Pow(dataStream[indexNew + 1] + stepLength - dataStream[indexOld + 1], 2.0) -
+                                                                    Math.Pow(dataStream[indexNew + 1] - dataStream[indexOld + 1], 2.0)) / stepLength;
+            }
+            else
+            {
+                derivatives[indexRow, dataLinkedList[indexRow, 2]] = (Math.Pow(dataStream[indexNew] + stepLength - relativePosition0, 2.0) -
+                                                                    Math.Pow(dataStream[indexNew] - relativePosition0, 2.0)) / stepLength;
+                derivatives[indexRow, dataLinkedList[indexRow, 2] + 1] = (Math.Pow(dataStream[indexNew + 1] + stepLength - relativePosition1, 2.0) -
+                                                                    Math.Pow(dataStream[indexNew + 1] - relativePosition1, 2.0)) / stepLength;
+            }
+        }
+        return derivatives;
+    }
+}
